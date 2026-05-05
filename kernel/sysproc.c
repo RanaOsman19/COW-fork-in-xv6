@@ -107,3 +107,16 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_getflags(void)
+{
+  uint64 va;
+  argaddr(0, &va);
+  struct proc *p = myproc();
+  
+  pte_t *pte= walk(p->pagetable, va,0);
+  if(pte == 0) return 0;
+  
+  return (uint64)(*pte & 0x3ff);
+}

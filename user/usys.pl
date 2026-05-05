@@ -28,6 +28,7 @@ entry("pipe");
 entry("read");
 entry("write");
 entry("close");
+entry("getflags");
 entry("kill");
 entry("exec");
 entry("open");
