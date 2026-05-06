@@ -499,12 +499,12 @@ _vmprint(pagetable_t pagetable, int level)
       uint64 pa = PTE2PA(pte);
       printf("%d: pte %p pa %p", i,(void*)pte,(void*)pa);
       if(pte& PTE_V) printf(" V");
-      if(pte& PTE_V) printf(" R");
-      if(pte& PTE_V) printf(" W");
-      if(pte& PTE_V) printf(" X");
-      if(pte& PTE_V) printf(" U");
+      if(pte& PTE_R) printf(" R");
+      if(pte& PTE_W) printf(" W");
+      if(pte& PTE_X) printf(" X");
+      if(pte& PTE_U) printf(" U");
       if(IS_COW(pte)) printf(" COW");
-      printf("/n");
+      printf("\n");
     
       if((pte & (PTE_R|PTE_W|PTE_X)) ==0){
         _vmprint((pagetable_t)pa, level+1);
@@ -523,6 +523,32 @@ vmprint(pagetable_t pagetable)
 
       
       
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
