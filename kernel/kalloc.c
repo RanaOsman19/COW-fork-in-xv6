@@ -9,6 +9,11 @@
 #include "riscv.h"
 #include "defs.h"
 
+// Member 2: Reference Counter Array
+#define PA2IDX(pa)  (((uint64)(pa)) >> 12)
+#define MAX_PAGES   (PHYSTOP >> 12)
+int page_refcount[MAX_PAGES];
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -27,11 +32,11 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  memset(page_refcount, 0, sizeof(page_refcount));
   freerange(end, (void*)PHYSTOP);
-}
+} 
 
-void
-freerange(void *pa_start, void *pa_end)
+void freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
@@ -52,6 +57,7 @@ kfree(void *pa)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
+  page_refcount[PA2IDX((uint64)pa)] = 0;
   memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
@@ -76,7 +82,39 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
+    page_refcount[PA2IDX((uint64)r)] = 1;
+  }
   return (void*)r;
+}
+
+// Member 2: Ref Count Functions
+void
+page_ref_inc(uint64 pa)
+{
+  acquire(&kmem.lock);
+  page_refcount[PA2IDX(pa)]++;
+  release(&kmem.lock);
+}
+
+void
+page_ref_dec(uint64 pa)
+{
+  acquire(&kmem.lock);
+  int idx = PA2IDX(pa);
+  page_refcount[idx]--;
+  if(page_refcount[idx] < 0)
+    panic("page_ref_dec: refcount went negative");
+  int should_free = (page_refcount[idx] == 0);
+  release(&kmem.lock);
+
+  if(should_free)
+    kfree((void*)pa);
+}
+
+int
+page_ref_get(uint64 pa)
+{
+  return page_refcount[PA2IDX(pa)];
 }
