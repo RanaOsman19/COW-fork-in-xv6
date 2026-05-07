@@ -296,29 +296,43 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
-  pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  char *mem;
+    pte_t *pte;
+    uint64 pa, i;
+    uint flags;
+  
 
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
-      continue;   // page table entry hasn't been allocated
-    if((*pte & PTE_V) == 0)
-      continue;   // physical page hasn't been allocated
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
+    for(i = 0; i < sz; i += PGSIZE){
+      if((pte = walk(old, i, 0)) == 0)
+        continue;   // page table entry hasn't been allocated
+      
+      if((*pte & PTE_V) == 0)
+        continue;   // physical page hasn't been allocated
+
+
+      pa = PTE2PA(*pte);
+      flags = PTE_FLAGS(*pte);
+    
+      if (flags & PTE_W){
+        *pte |= PTE_COW;
+        *pte &= ~PTE_W;
+        flags = PTE_FLAGS(*pte);
+      }
+
+    
+      if(mappages(new, i, PGSIZE, pa, flags) != 0)
+        goto err;
+
+      if(*pte & PTE_COW){
+        pte_t *child_pte = walk(new , i, 0);
+        *child_pte |= PTE_COW;
+        *child_pte &= ~PTE_W;
+      }
+    
+      page_ref_inc(pa);
     }
-  }
-  return 0;
-
- err:
+    return 0;
+  
+err:
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
