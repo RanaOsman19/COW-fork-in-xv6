@@ -173,6 +173,7 @@ int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             ismapped(pagetable_t, uint64);
 uint64          vmfault(pagetable_t, uint64, int);
 void            vmprint(pagetable_t); //making the function accessible to other files
+int             handle_cow_fault(pagetable_t, uint64);
 
 // plic.c
 void            plicinit(void);
