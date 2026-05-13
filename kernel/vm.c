@@ -557,6 +557,79 @@ void _vmprint(pagetable_t pagetable, int level)
   }
 }
 
+// Handle a copy-on-write fault.
+// Returns 0 on success, -1 on failure (out of memory or invalid address).
+int handle_cow_fault(pagetable_t pagetable, uint64 va)
+{
+  pte_t *pte;
+  uint64 pa;
+  char *mem;
+  uint flags;
+  struct proc *p = myproc();
+
+  // Round down to page boundary
+  va = PGROUNDDOWN(va);
+
+  // Check if address is valid (within process memory)
+  if (va >= p->sz)
+  {
+    return -1;
+  }
+
+  // Get the PTE for this address
+  pte = walk(pagetable, va, 0);
+  if (pte == 0)
+  {
+    return -1;
+  }
+
+  // Check if this is a valid COW page
+  if ((*pte & PTE_V) == 0)
+  {
+    return -1;
+  }
+
+  if (!IS_COW(*pte))
+  {
+    return -1;
+  }
+
+  // Get the physical address and flags
+  pa = PTE2PA(*pte);
+
+  // Allocate a new physical page
+  mem = kalloc();
+  if (mem == 0)
+  {
+    // Out of memory - kill the process
+    return -1;
+  }
+
+  // Copy data from old page to new page
+  memmove(mem, (void *)pa, PGSIZE);
+
+  // Decrement reference count on old page
+  page_ref_dec(pa);
+
+  // Create new PTE with write permission enabled
+  flags = PTE_FLAGS(*pte);
+  flags &= ~PTE_COW; // Remove COW flag
+  flags |= PTE_W;    // Add write permission
+
+  // Map the new page at the same virtual address
+  if (mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0)
+  {
+    // If mapping fails, free the new page and return error
+    kfree(mem);
+    return -1;
+  }
+
+  // Flush TLB to ensure CPU uses new mapping
+  sfence_vma();
+
+  return 0;
+}
+
 void vmprint(pagetable_t pagetable)
 {
   printf("page table%p\n", (void *)pagetable);
