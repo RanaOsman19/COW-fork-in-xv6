@@ -85,7 +85,7 @@ usertrap(void)
       if (vmfault(p->pagetable, va, 0) == 0)
       {
         // Lazy allocation also failed - kill process
-        printf("usertrap(): page fault at %p pid=%d\n", va, p->pid);
+        printf("usertrap(): page fault at %p pid=%d\n", (void *)va, p->pid);
         setkilled(p);
       }
     }
