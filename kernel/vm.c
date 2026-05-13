@@ -584,51 +584,54 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
     return -1;
   }
 
-  // Check if this is a valid COW page
+  // Check if this is a valid page
   if ((*pte & PTE_V) == 0)
   {
     return -1;
   }
 
+  // Check if this is a COW page
   if (!IS_COW(*pte))
   {
     return -1;
   }
 
-  // Get the physical address and flags
+  // Get the physical address and save flags
   pa = PTE2PA(*pte);
+  flags = PTE_FLAGS(*pte);
+
+  // Check if this page has more than 1 reference
+  // If refcount is 1, we can just make it writable without copying!
+  if (page_ref_get(pa) == 1)
+  {
+    // Only this process uses this page, just make it writable
+    *pte &= ~PTE_COW; // Remove COW flag
+    *pte |= PTE_W;    // Add write permission
+    sfence_vma();
+    return 0;
+  }
 
   // Allocate a new physical page
   mem = kalloc();
   if (mem == 0)
   {
-    // Out of memory - kill the process
     return -1;
   }
 
   // Copy data from old page to new page
   memmove(mem, (void *)pa, PGSIZE);
-  *pte = 0;
 
-  sfence_vma();
-
-  // Decrement reference count on old page
+  // Decrement reference count on old page (before modifying PTE)
   page_ref_dec(pa);
 
-  // Create new PTE with write permission enabled
-  flags = PTE_FLAGS(*pte);
-  flags &= ~PTE_COW; // Remove COW flag
-  flags |= PTE_W;    // Add write permission
+  // Create new PTE flags (remove COW, add write)
+  flags &= ~PTE_COW;
+  flags |= PTE_W;
 
-  // Map the new page at the same virtual address
-  if (mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0)
-  {
-    // If mapping fails, free the new page and return error
-    kfree(mem);
-    return -1;
-  }
+  // Replace the PTE with new mapping
+  *pte = PA2PTE(mem) | flags | PTE_V;
 
-  // Flush TLB to ensure CPU uses new mapping
+  // Flush TLB
   sfence_vma();
 
   return 0;
