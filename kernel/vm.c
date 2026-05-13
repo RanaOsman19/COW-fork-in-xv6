@@ -608,6 +608,9 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
 
   // Copy data from old page to new page
   memmove(mem, (void *)pa, PGSIZE);
+  *pte = 0;
+
+  sfence_vma();
 
   // Decrement reference count on old page
   page_ref_dec(pa);
