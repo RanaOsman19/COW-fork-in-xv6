@@ -19,6 +19,7 @@ int main()
         printf("Child reads x = %d\n", *x);
         *x = 200;
         printf("Child updates x to %d at address %p\n", *x, x);
+        printf("new value of x in child: %d\n", *x);
         exit(0);
     }
     else
