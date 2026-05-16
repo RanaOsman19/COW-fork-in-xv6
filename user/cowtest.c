@@ -9,7 +9,7 @@ int main(){
   uint64 va = (uint64)p;
   
   uint64 flags = getflags(va);
-  printf("Initial flags: %p\n", flags);
+  printf("Initial flags: %ld\n", flags);
   
   if(flags & PTE_W) {
       printf("SUCCESS: Page is writable.\n");
