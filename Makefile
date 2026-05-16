@@ -149,6 +149,7 @@ UPROGS=\
 	$U/_cowtest\
     $U/_usertests\
 	$U/_cowtest2\
+	$U/_cowalltest
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
