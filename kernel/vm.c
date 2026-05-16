@@ -381,9 +381,16 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     }
 
     pte = walk(pagetable, va0, 0);
-    // forbid copyout over read-only user text pages.
-    if ((*pte & PTE_W) == 0)
-      return -1;
+    // if the page is COW, handle the fault first before writing
+    if ((*pte & PTE_W) == 0) {
+      if (IS_COW(*pte)) {
+        if (handle_cow_fault(pagetable, va0) < 0)
+          return -1;
+        pa0 = walkaddr(pagetable, va0);
+      } else {
+        return -1;
+      }
+    }
 
     n = PGSIZE - (dstva - va0);
     if (n > len)
