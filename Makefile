@@ -145,7 +145,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_test
+	$U/_test\
 	$U/_cowtest\
     $U/_usertests\
 	$U/_cowtest2\
